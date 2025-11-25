@@ -1,4 +1,3 @@
-# app/routes/jobs.py
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from app.schemas import JobCreate, JobOut, ApplicationCreate
 from app.crud import create_job, get_jobs, get_job_by_id, add_applicant, create_application, get_applications_for_job
@@ -36,32 +35,14 @@ async def job_details(job_id: str):
 
 @router.post("/{job_id}/apply")
 async def apply_job(job_id: str, current_user=Depends(get_current_user)):
-    # student applying to job; current_user must be student (role check)
-    if current_user.get("role") != "student":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only students may apply")
-    # create application and add applicant to job
-    app_doc = {
-        "job_id": job_id,
-        "student_id": str(current_user["_id"]),
-        "resume_snapshot": current_user.get("profile", {}).get("resume_url"),
-        "applied_at": datetime.utcnow(),
-        "status": "applied"
-    }
-    aid = await create_application(app_doc)
-    await add_applicant(job_id, str(current_user["_id"]))
-    return {"application_id": aid}
+    student_id = str(current_user["_id"])
+    result = await add_applicant(job_id, student_id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return {"status": "applied"}
 
 
 @router.get("/{job_id}/applicants")
-async def job_applicants(job_id: str, current_user=Depends(require_role("recruiter"))):
-    # only the recruiter who posted the job or admin can view applicants
-    job = await get_job_by_id(job_id)
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    # allow only poster or admin
-    poster_id = job.get("posted_by")
-    user_id = str(current_user["_id"])
-    if user_id != poster_id and current_user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view applicants")
-    apps = await get_applications_for_job(job_id)
-    return {"count": len(apps), "applications": apps}
+async def get_applicants(job_id: str, current_user=Depends(require_role("recruiter"))):
+    applications = await get_applications_for_job(job_id)
+    return {"count": len(applications), "applications": applications}

@@ -1,4 +1,3 @@
-# app/auth.py
 import os
 from datetime import datetime, timedelta
 from typing import Optional
@@ -10,7 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretchangeinprod")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/students/login")
@@ -45,3 +44,4 @@ def require_token(token: str = Depends(oauth2_scheme)) -> dict:
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid auth token")
     return payload
+

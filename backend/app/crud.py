@@ -1,4 +1,3 @@
-# app/crud.py
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -6,7 +5,7 @@ from typing import List, Optional, Dict
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 client = AsyncIOMotorClient(MONGO_URI)
-db = client["jobportal"]
+db = client["AuthDB"]
 
 users_col = db["users"]
 jobs_col = db["jobs"]
@@ -14,11 +13,10 @@ applications_col = db["applications"]
 
 
 def _id_to_str(doc: dict) -> dict:
-    """Convert _id to id string and remove _id for responses."""
+    """Convert _id to id string."""
     if not doc:
         return doc
     doc["id"] = str(doc["_id"])
-    doc.pop("_id", None)
     return doc
 
 
@@ -32,39 +30,51 @@ async def find_user_by_email(email: str) -> Optional[dict]:
 
 
 async def find_user_by_id(uid: str) -> Optional[dict]:
-    return await users_col.find_one({"_id": ObjectId(uid)})
+    try:
+        return await users_col.find_one({"_id": ObjectId(uid)})
+    except:
+        return None
 
 
 async def create_job(doc: Dict) -> str:
-    doc["posted_at"] = doc.get("posted_at")
-    doc["applicants"] = []
+    doc["applicants"] = doc.get("applicants", [])
     res = await jobs_col.insert_one(doc)
     return str(res.inserted_id)
 
 
 async def get_jobs(filter: dict = None, limit: int = 100) -> List[dict]:
-    cursor = jobs_col.find(filter or {}).limit(limit)
-    results = []
-    async for doc in cursor:
-        results.append(_id_to_str(doc))
-    return results
+    try:
+        query_filter = filter or {}
+        cursor = jobs_col.find(query_filter).limit(limit)
+        results = []
+        async for doc in cursor:
+            results.append(_id_to_str(doc))
+        return results
+    except Exception as e:
+        print(f"Error in get_jobs: {e}")
+        raise
 
 
 async def get_job_by_id(jid: str) -> Optional[dict]:
-    doc = await jobs_col.find_one({"_id": ObjectId(jid)})
-    return _id_to_str(doc) if doc else None
+    try:
+        doc = await jobs_col.find_one({"_id": ObjectId(jid)})
+        return _id_to_str(doc) if doc else None
+    except:
+        return None
 
 
 async def add_applicant(job_id: str, student_id: str) -> bool:
-    res = await jobs_col.update_one(
-        {"_id": ObjectId(job_id)},
-        {"$addToSet": {"applicants": student_id}}
-    )
-    return res.modified_count > 0
+    try:
+        res = await jobs_col.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$addToSet": {"applicants": student_id}}
+        )
+        return res.modified_count > 0
+    except:
+        return False
 
 
 async def create_application(doc: dict) -> str:
-    doc["applied_at"] = doc.get("applied_at")
     doc["status"] = doc.get("status", "applied")
     res = await applications_col.insert_one(doc)
     return str(res.inserted_id)
@@ -79,5 +89,8 @@ async def get_applications_for_job(job_id: str) -> List[dict]:
 
 
 async def init_text_index():
-    # create text index for job searching on title and description
-    await jobs_col.create_index([("title", "text"), ("description", "text")])
+    try:
+        await jobs_col.create_index([("title", "text"), ("description", "text")])
+    except:
+        pass
+

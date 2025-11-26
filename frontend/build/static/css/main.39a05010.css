@@ -1,0 +1,2 @@
+@tailwind base;@tailwind components;@tailwind utilities;:root{--bg:#f8fafc;--card:#fff;--text:#0f172a}[data-theme=dark]{--bg:#1f4eac;--card:#060d1a;--text:#e6eef8}body{background:#f8fafc;background:var(--bg);color:#0f172a;color:var(--text)}
+/*# sourceMappingURL=main.39a05010.css.map*/
